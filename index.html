@@ -102,7 +102,8 @@
 
   .err{color:var(--dn);font-size:12px;padding:6px 2px}
   .foot{font-size:10.5px;color:var(--mut2);text-align:center;margin-top:18px;line-height:1.6}
-  .banner{background:var(--dnbg);color:var(--dn);border:1px solid var(--dn);border-radius:10px;padding:9px 12px;font-size:12px;margin-bottom:12px;display:none}
+  .live.stale{color:var(--warn)}
+  .live.stale .dot{background:var(--warn);animation:none;box-shadow:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
   .gate.hidden{display:none}
   .gatebox{width:100%;max-width:320px;text-align:center}
@@ -127,11 +128,10 @@
 <div class="wrap">
   <div class="top">
     <div class="ttl"><h1>Пульс парков</h1></div>
-    <div class="upd"><span class="live"><span class="dot"></span>live</span><br><span id="updRel">—</span><br>обновление каждые 15 мин</div>
+    <div class="upd"><span class="live" id="liveInd"><span class="dot"></span>live</span><br><span id="updRel">—</span><br>обновление каждые 15 мин</div>
   </div>
-  <div class="banner" id="banner"></div>
   <div class="agg">
-    <div><div class="lbl">Выручка сегодня · <span id="aggN">—</span> парка</div><div class="big" id="aggSum">—</div></div>
+    <div><div class="lbl">Выручка сегодня · <span id="aggN">—</span></div><div class="big" id="aggSum">—</div></div>
     <div class="rt" id="aggCnt">—</div>
   </div>
   <div class="pager"><span class="pgname" id="pgName">—</span><div class="dots" id="dots"></div></div>
@@ -174,7 +174,7 @@ function sparkline(vals){
 }
 function card(p){
   if(p.error) return `<div class="card"><div class="chead"><div class="pname"><h2>${p.name}</h2></div></div><div class="err">данные недоступны: ${p.error}</div></div>`;
-  const te=p.today_end;
+  const te=p.today_end; const closed=!te;
   const norm=(p.series.med&&p.series.med.length)?p.series.med[p.series.med.length-1]:0;
   const nv=norm?pct(te,norm):0;
   const pillCls=Math.abs(nv)<2?"fl":sgn(nv);
@@ -194,10 +194,10 @@ function card(p){
   return `<div class="card">
     <div class="chead">
       <div class="pname"><span class="pdot" style="background:${p.accent}"></span><h2>${p.name}</h2><span class="sys">${p.sys}</span></div>
-      <span class="pill ${pillCls}">${arr(nv)} ${fpct(nv)} к норме</span>
+      ${closed?'<span class="pill fl">нет продаж сегодня</span>':`<span class="pill ${pillCls}">${arr(nv)} ${fpct(nv)} к норме</span>`}
     </div>
-    <div class="hero"><div class="hval">${rub(te)}</div><div class="hsub">к ${clk(p.now_min)} · сегодня</div></div>
-    <div class="chips">${chips}</div>${anomNote}
+    <div class="hero"><div class="hval">${closed?'—':rub(te)}</div><div class="hsub">${closed?'сегодня закрыто · нет продаж':'к '+clk(p.now_min)+' · сегодня'}</div></div>
+    ${closed?'':`<div class="chips">${chips}</div>${anomNote}`}
     ${chart(p)}
     <div class="leg">
       <i><span class="lk" style="border-color:${p.accent};width:16px"></span>сегодня</i>
@@ -288,7 +288,7 @@ function render(data){
   const ok=parks.filter(p=>!p.error);
   const sum=ok.reduce((s,p)=>s+p.today_end,0);
   const ahead=ok.filter(p=>p.refs && p.today_end>p.refs.d7).length;
-  document.getElementById("aggN").textContent=parks.length;
+  (function(n){const m=n%10,h=n%100;document.getElementById("aggN").textContent=n+" "+(m===1&&h!==11?"парк":(m>=2&&m<=4&&(h<12||h>14)?"парка":"парков"));})(parks.length);
   document.getElementById("aggSum").textContent=rub(sum);
   document.getElementById("aggCnt").innerHTML=`<b>${ahead} из ${ok.length}</b><br>опережают −7д`;
   const gen=new Date(data.generated);
@@ -309,11 +309,17 @@ async function decryptData(pass){
   return JSON.parse(DEC.decode(pt));
 }
 let PASS=null, timer=null;
+function setStale(s){
+  const el=$("liveInd"); if(!el) return;
+  el.classList.toggle("stale", s);
+  el.innerHTML = s ? '<span class="dot"></span>нет связи' : '<span class="dot"></span>live';
+}
 async function refresh(){
   if(!PASS) return;
-  try{ const data=await decryptData(PASS); $("banner").style.display="none"; render(data); }
-  catch(e){ if(e.name==="OperationError") lock("Введите пароль");
-            else { $("banner").style.display="block"; $("banner").textContent="Ошибка загрузки: "+e.message; } }
+  // на рефреше пароль уже валиден: любая ошибка — транзиент (частичная загрузка/сеть),
+  // НЕ локаем (иначе экран пароля блокирует свайп) и не вешаем баннер — просто метим «нет связи»
+  try{ const data=await decryptData(PASS); setStale(false); render(data); }
+  catch(e){ setStale(true); }
 }
 function lock(msg){
   PASS=null; localStorage.removeItem("pp_pass");
@@ -326,7 +332,7 @@ async function unlock(pass){
   try{
     const data=await decryptData(pass);
     PASS=pass; localStorage.setItem("pp_pass",pass); $("gerr").textContent="";
-    $("gate").classList.add("hidden"); render(data);
+    $("gate").classList.add("hidden"); render(data); setStale(false);
     if(!timer) timer=setInterval(refresh,15*60*1000);
   }catch(e){
     $("gerr").textContent = e.name==="OperationError" ? "Неверный пароль" : "Ошибка: "+e.message;
