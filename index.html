@@ -204,7 +204,7 @@ function card(p){
       <div class="pname"><span class="pdot" style="background:${p.accent}"></span><h2>${p.name}</h2><span class="sys">${p.sys}</span></div>
       ${closed?'<span class="pill fl">нет продаж сегодня</span>':`<span class="pill ${pillCls}">${arr(nv)} ${fpct(nv)} к норме</span>`}
     </div>
-    <div class="hero"><div class="hval">${closed?'—':rub(te)}</div><div class="hsub">${closed?'сегодня закрыто · нет продаж':'к '+clk(p.now_min)+' · сегодня'}</div></div>
+    <div class="hero"><div class="hval">${closed?'—':rub(te)}</div><div class="hsub">${closed?'сегодня закрыто · нет продаж':'к '+clk(p.now_min)+' · сегодня'}${p.stale?' · прошлый снимок':''}</div></div>
     ${closed?'':`<div class="chips">${chips}</div>${anomNote}`}
     ${chart(p)}
     <div class="leg">
