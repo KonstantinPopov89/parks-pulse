@@ -37,8 +37,17 @@
   .agg .rt{text-align:right;font-size:12px;color:var(--mut);line-height:1.5;white-space:nowrap;flex:none}
   .agg .rt b{color:var(--up);font-size:15px}
 
-  .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:13px 13px 12px;margin-bottom:13px;
-    box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+  #cards{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -12px;padding:0 12px}
+  #cards::-webkit-scrollbar{display:none}
+  .pager{display:flex;align-items:center;justify-content:center;gap:11px;margin:0 0 6px}
+  .pgname{font-size:13.5px;font-weight:700;transition:color .2s}
+  .dots{display:flex;gap:6px;align-items:center}
+  .dot2{width:7px;height:7px;border-radius:50%;background:var(--bd2);transition:all .22s;cursor:pointer}
+  .dot2.on{width:20px;border-radius:4px}
+  .swipehint{text-align:center;font-size:10px;color:var(--mut2);margin:0 0 11px;transition:opacity .5s}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:13px 13px 12px;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset;
+    flex:0 0 calc(100% - 26px);scroll-snap-align:center}
   .chead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
   .pname{display:flex;align-items:center;gap:8px;min-width:0}
   .pdot{width:9px;height:9px;border-radius:50%;flex:none}
@@ -125,6 +134,8 @@
     <div><div class="lbl">Выручка сегодня · <span id="aggN">—</span> парка</div><div class="big" id="aggSum">—</div></div>
     <div class="rt" id="aggCnt">—</div>
   </div>
+  <div class="pager"><span class="pgname" id="pgName">—</span><div class="dots" id="dots"></div></div>
+  <div class="swipehint" id="swipehint">← листайте парки →</div>
   <div id="cards"></div>
   <div class="foot">«Темп дня» = накопленная выручка от открытия до текущего времени суток,<br>сравнение с тем же отрезком вчера / −7 / −14 / −21 день</div>
 </div>
@@ -214,9 +225,28 @@ function yoyTable(yoy){
   return h+`</div>`;
 }
 
+let CAR_IDX=0;
+function carActive(cards){
+  const mid=cards.scrollLeft+cards.clientWidth/2; let b=0,bd=1e9;
+  [...cards.children].forEach((el,i)=>{const c=el.offsetLeft+el.offsetWidth/2,d=Math.abs(c-mid);if(d<bd){bd=d;b=i;}});
+  return b;
+}
+function setupCarousel(parks){
+  const cards=$("cards"),dots=$("dots"),nm=$("pgName");
+  if(!parks.length){dots.innerHTML="";nm.textContent="";return;}
+  if(CAR_IDX>=parks.length)CAR_IDX=0;
+  const paint=i=>{[...dots.children].forEach((d,j)=>{const on=j===i;d.classList.toggle("on",on);d.style.background=on?parks[j].accent:"";});const p=parks[i]||{};nm.textContent=p.name||"";nm.style.color=p.accent||"var(--tx)";};
+  dots.innerHTML=parks.map((p,i)=>`<span class="dot2" data-i="${i}"></span>`).join("");
+  paint(CAR_IDX);
+  cards.onscroll=()=>requestAnimationFrame(()=>{const i=carActive(cards);if(i!==CAR_IDX){CAR_IDX=i;paint(i);const h=$("swipehint");if(h)h.style.opacity="0";}});
+  dots.onclick=e=>{const i=e.target.dataset&&e.target.dataset.i;if(i!=null){const el=cards.children[+i];if(el)el.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"});}};
+}
+
 function render(data){
   const parks=data.parks||[];
   document.getElementById("cards").innerHTML=parks.map(card).join("");
+  setupCarousel(parks);
+  requestAnimationFrame(()=>{const cc=document.getElementById("cards"),t=cc.children[CAR_IDX];if(t)cc.scrollLeft=Math.max(0,t.offsetLeft-(cc.clientWidth-t.offsetWidth)/2);});
   const ok=parks.filter(p=>!p.error);
   const sum=ok.reduce((s,p)=>s+p.today_end,0);
   const ahead=ok.filter(p=>p.refs && p.today_end>p.refs.d7).length;
