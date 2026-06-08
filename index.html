@@ -136,7 +136,7 @@
 <div class="wrap">
   <div class="top">
     <div class="ttl"><h1>Пульс парков</h1></div>
-    <div class="upd"><span class="live" id="liveInd"><span class="dot"></span>live</span><br><span id="updRel">—</span><br>обновление каждые 15 мин</div>
+    <div class="upd"><span class="live" id="liveInd"><span class="dot"></span>live</span><br><span id="updRel">—</span><br><button id="refreshBtn" class="refbtn"><span class="ri">↻</span> обновить</button></div>
   </div>
   <div class="agg">
     <div><div class="lbl">Выручка сегодня · <span id="aggN">—</span></div><div class="big" id="aggSum">—</div></div>
@@ -327,7 +327,10 @@ async function refresh(){
   // на рефреше пароль уже валиден: любая ошибка — транзиент (частичная загрузка/сеть),
   // НЕ локаем (иначе экран пароля блокирует свайп) и не вешаем баннер — просто метим «нет связи»
   try{ const data=await decryptData(PASS); setStale(false); render(data); }
-  catch(e){ setStale(true); }
+  catch(e){ setStale(true);
+    // экран пароля показываем ТОЛЬКО если совсем нечего показать и пароль не подходит;
+    // если карточки уже отрисованы — никогда не блокируем свайп, просто «нет связи»
+    if(e.name==="OperationError" && !document.querySelector("#cards .card")) lock("Проверьте пароль"); }
 }
 function lock(msg){
   PASS=null; localStorage.removeItem("pp_pass");
@@ -353,8 +356,18 @@ async function unlock(pass){
   }
   $("gbtn").addEventListener("click",()=>unlock($("gpass").value));
   $("gpass").addEventListener("keydown",e=>{if(e.key==="Enter")unlock($("gpass").value);});
+  $("refreshBtn").addEventListener("click",()=>{
+    const b=$("refreshBtn"); if(b.classList.contains("spin"))return;
+    b.classList.add("spin");
+    Promise.resolve(refresh()).finally(()=>setTimeout(()=>b.classList.remove("spin"),550));
+  });
+  // переоткрыл приложение с домашнего экрана → подтянуть свежее
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden && PASS) refresh(); });
   const saved=localStorage.getItem("pp_pass");
-  if(saved) unlock(saved); else lock("");
+  // сохранённый пароль уже был валиден → НЕ показываем экран пароля (не блокируем свайп),
+  // прячем гейт и грузим данные в фоне; refresh() сам пометит «нет связи» при сбое
+  if(saved){ PASS=saved; $("gate").classList.add("hidden"); if(!timer) timer=setInterval(refresh,15*60*1000); refresh(); }
+  else lock("");
 })();
 </script>
 </body>
