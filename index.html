@@ -46,7 +46,7 @@
   .card{position:absolute;top:0;left:0;right:0;background:var(--card);border:1px solid var(--bd);border-radius:16px;
     padding:12px 12px 11px;box-shadow:0 1px 0 rgba(255,255,255,.02) inset;
     transition:transform .34s cubic-bezier(.2,.7,.3,1),opacity .3s;will-change:transform;backface-visibility:hidden}
-  .card.top{touch-action:none;cursor:grab}
+  .card.ontop{touch-action:none;cursor:grab}
   .card.dragging{transition:none;cursor:grabbing}
   .chead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
   .pname{display:flex;align-items:center;gap:8px;min-width:0}
@@ -230,13 +230,13 @@ function restack(){
   if(!N) return;
   cards.forEach((el,i)=>{
     const r=((i-DECK_TOP)%N+N)%N;
-    el.classList.toggle("top", r===0);
+    el.classList.toggle("ontop", r===0);
     if(r===0){ el.style.zIndex=30; if(!el.classList.contains("dragging")){el.style.transform="";el.style.opacity="1";} el.style.pointerEvents="auto"; }
-    else if(r===1){ el.style.zIndex=20; el.style.transform="scale(.955) translateY(13px)"; el.style.opacity="1"; el.style.pointerEvents="none"; }
-    else if(r===2){ el.style.zIndex=10; el.style.transform="scale(.91) translateY(26px)"; el.style.opacity="1"; el.style.pointerEvents="none"; }
-    else { el.style.zIndex=0; el.style.transform="scale(.91) translateY(26px)"; el.style.opacity="0"; el.style.pointerEvents="none"; }
+    else if(r===1){ el.style.zIndex=20; el.style.transform="scale(.965) translateY(22px)"; el.style.opacity="1"; el.style.pointerEvents="none"; }
+    else if(r===2){ el.style.zIndex=10; el.style.transform="scale(.93) translateY(40px)"; el.style.opacity="1"; el.style.pointerEvents="none"; }
+    else { el.style.zIndex=0; el.style.transform="scale(.93) translateY(40px)"; el.style.opacity="0"; el.style.pointerEvents="none"; }
   });
-  const topEl=cards[DECK_TOP]; if(topEl) deck.style.height=(topEl.offsetHeight+26)+"px";
+  const topEl=cards[DECK_TOP]; if(topEl) deck.style.height=(topEl.offsetHeight+44)+"px";
   const dots=$("dots"), p=DECK_PARKS[DECK_TOP]||{};
   [...dots.children].forEach((d,j)=>{const on=j===DECK_TOP;d.classList.toggle("on",on);d.style.background=on?(DECK_PARKS[j]||{}).accent:"";});
   $("pgName").textContent=p.name||""; $("pgName").style.color=p.accent||"var(--tx)";
@@ -254,7 +254,7 @@ function setupDeck(parks){
 function attachDeckDrag(deck){
   let card=null,sx=0,sy=0,dx=0,dy=0,on=false;
   deck.addEventListener("pointerdown",e=>{
-    const t=deck.querySelector(".card.top"); if(!t)return;
+    const t=deck.querySelector(".card.ontop"); if(!t)return;
     if(e.target.closest&&e.target.closest(".dot2"))return;
     if(!t.contains(e.target))return;
     card=t;sx=e.clientX;sy=e.clientY;dx=dy=0;on=true;card.classList.add("dragging");
